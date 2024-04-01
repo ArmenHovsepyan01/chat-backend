@@ -5,7 +5,6 @@ import http from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import connectDB from './database/config/connect';
-import { Room } from './database/models/room.model';
 
 dotenv.config();
 
@@ -27,12 +26,41 @@ app.get('/', (req, res) => {
   res.send('Hi');
 });
 
+const Users = {
+  users: [],
+  setUsers: function (newUser) {
+    this.users = [...this.users, newUser];
+  }
+};
+
 io.on('connection', (socket) => {
   socket.on('joinRoom', ({ roomId, message, userName }) => {
-    socket.join(roomId);
+    const user = Users.users.find((user) => user.id === socket.id);
+
+    if (user) {
+      if (user.roomId !== roomId) {
+        socket.leave(user.roomId);
+        Users.users = Users.users.map((item) => {
+          if (item.id === user.id) {
+            return {
+              ...item,
+              roomId
+            };
+          }
+
+          return item;
+        });
+
+        socket.join(roomId);
+      }
+    } else {
+      Users.setUsers({ id: socket.id, roomId, userName }); // Add id: socket.id to identify users uniquely
+      socket.join(roomId);
+    }
 
     socket.on('sendMessage', (message) => {
-      io.to(roomId).emit('receiveMessage', { message });
+      console.log(socket.rooms, message);
+      io.to(message.roomId).emit('receiveMessage', { message });
     });
 
     io.to(roomId).emit('message', {
@@ -46,7 +74,6 @@ io.on('connection', (socket) => {
     });
   });
 
-  // Handle disconnection
   socket.on('disconnect', () => {
     console.log('User disconnected');
   });
@@ -57,6 +84,7 @@ const start = async () => {
     await connectDB();
     server.listen(PORT, () => console.log(`Server is listening on port::${PORT}`));
   } catch (e) {
+    console.error(e);
     throw new Error(e);
   }
 };
