@@ -5,7 +5,11 @@ import http from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import connectDB from './database/config/connect';
-import { Room } from './database/models/room.model';
+import router from './router/router';
+import userServices from './services/user.services';
+import { User } from './database/models/user.model';
+import { Messages } from './database/models/messages.model';
+import messagesServices from './services/messages.services';
 
 dotenv.config();
 
@@ -22,32 +26,56 @@ const PORT = process.env.PORT || 5005;
 
 app.use(cors());
 
-app.get('/', (req, res) => {
-  console.log(req);
-  res.send('Hi');
-});
+app.use('/', router);
+
+let users = [];
 
 io.on('connection', (socket) => {
-  socket.on('joinRoom', ({ roomId, message, userName }) => {
-    socket.join(roomId);
+  socket.on('joinRoom', async ({ roomId, userName }) => {
+    try {
+      const user = await userServices.findUser(userName);
+      const messages = await messagesServices.getRoomMessages(roomId);
 
-    socket.on('sendMessage', (message) => {
-      io.to(roomId).emit('receiveMessage', { message });
-    });
+      if (user) {
+        socket.leave(user.roomId);
+        await userServices.updateUserRoom(user._id, roomId);
+        socket.join(roomId);
+      } else {
+        await userServices.addUser(userName, roomId);
+        socket.join(roomId);
+      }
 
-    io.to(roomId).emit('message', {
-      message,
-      roomId,
-      userName
-    });
+      io.to(roomId).emit('message', {
+        message: `${userName} joined room`,
+        roomId,
+        userName: 'Admin'
+      });
 
-    io.to(roomId).emit('roomSettings', {
-      roomId
-    });
+      socket.emit('messages', { messages });
+    } catch (e) {
+      console.error(e);
+    }
   });
 
-  // Handle disconnection
-  socket.on('disconnect', () => {
+  socket.on('sendMessage', async (data) => {
+    try {
+      const { roomId, userName, message } = data;
+
+      const createdMessage = await messagesServices.addMessage(userName, roomId, message);
+
+      io.to(data.roomId).emit('receiveMessage', { message: createdMessage });
+    } catch (e) {
+      console.error(e);
+    }
+  });
+
+  socket.on('typing', (event) => {
+    socket
+      .to(event.roomId)
+      .emit('userTyping', { message: `${event.userName} is typing...`, isTyping: event.isTyping });
+  });
+
+  socket.on('disconnect', (data) => {
     console.log('User disconnected');
   });
 });
