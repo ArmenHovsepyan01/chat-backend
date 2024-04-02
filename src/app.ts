@@ -7,8 +7,6 @@ import cors from 'cors';
 import connectDB from './database/config/connect';
 import router from './router/router';
 import userServices from './services/user.services';
-import { User } from './database/models/user.model';
-import { Messages } from './database/models/messages.model';
 import messagesServices from './services/messages.services';
 
 dotenv.config();
