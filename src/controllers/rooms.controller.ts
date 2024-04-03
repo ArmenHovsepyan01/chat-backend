@@ -16,4 +16,21 @@ async function get(req: Request, res: Response) {
   }
 }
 
-export default { get };
+async function create(req: Request, res: Response) {
+  try {
+    const { name } = req.body;
+
+    const room = await roomService.createRoom(name);
+
+    res.json({
+      message: 'You successfully create new room',
+      data: room
+    });
+  } catch (e) {
+    res.status(400).json({
+      message: `Something gone wrong, ${e}`
+    });
+  }
+}
+
+export default { get, create };

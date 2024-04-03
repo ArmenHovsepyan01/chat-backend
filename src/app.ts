@@ -3,11 +3,16 @@ import dotenv from 'dotenv';
 import http from 'http';
 
 import { Server } from 'socket.io';
+
 import cors from 'cors';
 import connectDB from './database/config/connect';
+
 import router from './router/router';
 import userServices from './services/user.services';
 import messagesServices from './services/messages.services';
+
+import * as crypto from 'crypto';
+import { Rooms } from './database/models/room.model';
 
 dotenv.config();
 
@@ -24,29 +29,43 @@ const PORT = process.env.PORT || 5005;
 
 app.use(cors());
 
-app.use('/', router);
+app.use(express.json());
 
-let users = [];
+app.use('/', router);
 
 io.on('connection', (socket) => {
   socket.on('joinRoom', async ({ roomId, userName }) => {
     try {
+      if (!roomId || !userName) throw new Error("Room id or user name is missing, can't join room");
+
+      console.log(roomId);
+
       const user = await userServices.findUser(userName);
       const messages = await messagesServices.getRoomMessages(roomId);
 
       if (user) {
-        socket.leave(user.roomId);
-        await userServices.updateUserRoom(user._id, roomId);
+        if (user.roomId && user.roomId._id.toString() !== roomId) {
+          console.log(true);
+          socket.leave(user.roomId._id.toString());
+        }
+        const updatedUser = await userServices.updateUserRoom(user._id, roomId);
+        await Rooms.findByIdAndUpdate(roomId, { $push: { users: updatedUser._id } });
         socket.join(roomId);
       } else {
-        await userServices.addUser(userName, roomId);
+        const createdUser = await userServices.addUser(userName, roomId);
+        await Rooms.findByIdAndUpdate(roomId, { $push: { users: createdUser._id } });
         socket.join(roomId);
       }
 
-      io.to(roomId).emit('message', {
+      socket.to(roomId).emit('message', {
+        _id: crypto.randomUUID(),
         message: `${userName} joined room`,
         roomId,
-        userName: 'Admin'
+        user: {
+          userName: 'Admin',
+          _id: crypto.randomUUID()
+        },
+        createdAt: new Date()
       });
 
       socket.emit('messages', { messages });
@@ -58,6 +77,8 @@ io.on('connection', (socket) => {
   socket.on('sendMessage', async (data) => {
     try {
       const { roomId, userName, message } = data;
+
+      console.log(roomId);
 
       const createdMessage = await messagesServices.addMessage(userName, roomId, message);
 
@@ -73,8 +94,13 @@ io.on('connection', (socket) => {
       .emit('userTyping', { message: `${event.userName} is typing...`, isTyping: event.isTyping });
   });
 
-  socket.on('disconnect', (data) => {
+  socket.on('disconnect', () => {
     console.log('User disconnected');
+  });
+
+  socket.on('leaveRoom', async ({ roomId, userName }) => {
+    await userServices.leaveRoom(userName, roomId);
+    socket.leave(roomId);
   });
 });
 

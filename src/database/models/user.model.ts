@@ -7,7 +7,8 @@ const UserSchema = new mongoose.Schema({
     required: true
   },
   roomId: {
-    type: String,
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Rooms',
     required: true
   }
 });

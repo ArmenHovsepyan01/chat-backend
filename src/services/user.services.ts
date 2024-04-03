@@ -1,5 +1,6 @@
 import { User } from '../database/models/user.model';
 import { ObjectId } from 'mongodb';
+import { Rooms } from '../database/models/room.model';
 
 async function getAllUsers() {
   try {
@@ -27,7 +28,7 @@ async function addUser(userName: string, roomId: string) {
 
 async function findUser(userName: string) {
   try {
-    return await User.findOne({ userName });
+    return await User.findOne({ userName }).populate('roomId', '_id');
   } catch (e) {
     throw new Error(e);
   }
@@ -35,7 +36,17 @@ async function findUser(userName: string) {
 
 async function updateUserRoom(id: ObjectId, roomId: string) {
   try {
-    return await User.findByIdAndUpdate(id, { roomId });
+    return await User.findByIdAndUpdate(id, { roomId }, { new: true });
+  } catch (e) {
+    throw new Error(e);
+  }
+}
+
+async function leaveRoom(userName: string, roomId: string) {
+  try {
+    const updatedUser = await User.findOneAndUpdate({ userName }, { roomId: null }, { new: true });
+
+    await Rooms.findByIdAndUpdate(roomId, { $pull: { users: updatedUser._id } });
   } catch (e) {
     throw new Error(e);
   }
@@ -46,5 +57,6 @@ export default {
   addUser,
   deleteUser,
   getAllUsers,
-  updateUserRoom
+  updateUserRoom,
+  leaveRoom
 };
