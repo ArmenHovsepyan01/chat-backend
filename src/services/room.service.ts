@@ -1,4 +1,5 @@
 import { Rooms } from '../database/models/room.model';
+import { ObjectId } from 'mongodb';
 
 async function getAllRooms() {
   try {
@@ -16,4 +17,12 @@ async function createRoom(name: string) {
   }
 }
 
-export default { getAllRooms, createRoom };
+async function addUser(id: ObjectId, userId: ObjectId) {
+  try {
+    await Rooms.findByIdAndUpdate(id, { $push: { users: userId } });
+  } catch (e) {
+    throw new Error(e);
+  }
+}
+
+export default { getAllRooms, createRoom, addUser };

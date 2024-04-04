@@ -18,7 +18,7 @@ async function deleteUser(userName: string) {
   }
 }
 
-async function addUser(userName: string, roomId: string) {
+async function addUser(userName: string, roomId?: string) {
   try {
     return await User.create({ userName, roomId });
   } catch (e) {

@@ -6,7 +6,7 @@ async function get(req: Request, res: Response) {
     const rooms = await roomService.getAllRooms();
 
     res.json({
-      message: 'Successfully getted all rooms.',
+      message: 'Successfully got all rooms.',
       data: rooms
     });
   } catch (e) {
@@ -23,7 +23,7 @@ async function create(req: Request, res: Response) {
     const room = await roomService.createRoom(name);
 
     res.json({
-      message: 'You successfully create new room',
+      message: 'You successfully created new room',
       data: room
     });
   } catch (e) {
