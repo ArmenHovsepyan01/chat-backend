@@ -44,6 +44,7 @@ async function updateUserRoom(id: ObjectId, roomId: string) {
 
 async function leaveRoom(userName: string, roomId: string) {
   try {
+    console.log(userName, roomId);
     const updatedUser = await User.findOneAndUpdate({ userName }, { roomId: null }, { new: true });
 
     await Rooms.findByIdAndUpdate(roomId, { $pull: { users: updatedUser._id } });

@@ -41,24 +41,32 @@ io.on('connection', (socket) => {
       if (!roomId || !userName) throw new Error("Room id or user name is missing, can't join room");
 
       const user = await userServices.findUser(userName);
-      const messages = await messagesServices.getRoomMessages(roomId);
-
-      let modifiedUser: User;
 
       if (user) {
         if (user.roomId && user.roomId._id.toString() !== roomId) {
           socket.leave(user.roomId._id.toString());
+          await roomService.removeUser(roomId, user._id);
+
+          const updatedUser = await userServices.updateUserRoom(user._id, roomId);
+
+          await roomService.addUser(roomId, updatedUser._id);
         }
-        modifiedUser = await userServices.updateUserRoom(user._id, roomId);
       } else {
-        modifiedUser = await userServices.addUser(userName, roomId);
+        const newUser = await userServices.addUser(userName, roomId);
+
+        await roomService.addUser(roomId, newUser._id);
       }
 
-      await roomService.addUser(roomId, modifiedUser._id);
+      const pinnedMessage = await messagesServices.addMessage(
+        userName,
+        roomId,
+        `${userName} join chat.`,
+        true
+      );
+
+      io.to(roomId).emit('message', pinnedMessage);
 
       socket.join(roomId);
-
-      socket.to(roomId).emit('message', generateAdminMessage(userName, roomId));
     } catch (e) {
       console.error(e);
     }
@@ -88,6 +96,16 @@ io.on('connection', (socket) => {
   socket.on('leaveRoom', async ({ roomId, userName }) => {
     if (roomId && userName) {
       await userServices.leaveRoom(userName, roomId);
+
+      const pinnedMessage = await messagesServices.addMessage(
+        userName,
+        roomId,
+        `${userName} leave chat.`,
+        true
+      );
+
+      socket.to(roomId).emit('message', pinnedMessage);
+
       socket.leave(roomId);
     }
   });

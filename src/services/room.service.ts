@@ -25,4 +25,12 @@ async function addUser(id: ObjectId, userId: ObjectId) {
   }
 }
 
-export default { getAllRooms, createRoom, addUser };
+async function removeUser(id: ObjectId, userId: ObjectId) {
+  try {
+    await Rooms.findByIdAndUpdate(id, { $pull: { users: userId } });
+  } catch (e) {
+    throw new Error(e);
+  }
+}
+
+export default { getAllRooms, createRoom, addUser, removeUser };

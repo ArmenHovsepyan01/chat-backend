@@ -13,6 +13,10 @@ const messagesSchema = new mongoose.Schema(
     },
     message: {
       type: String
+    },
+    type: {
+      type: String,
+      default: 'message'
     }
   },
   {
